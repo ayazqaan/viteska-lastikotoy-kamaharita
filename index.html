@@ -3,24 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Viteska – Lastikçi & Oto Yıkamacı Harita</title>
+  <title>Viteska – Lastikçi & Oto Yıkamacı & Otopark Harita</title>
   <style>
-        * {
-      -webkit-tap-highlight-color: transparent !important;
-      -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
-      outline: none !important;
-      box-shadow: none !important;
-    }
-    button, .quick-box, .btn-menu, .menu-list a, .ad-row button {
-      -webkit-tap-highlight-color: transparent !important;
-      -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
-      outline: none !important;
-      box-shadow: none !important;
-      user-select: none;
-    }
     :root {
       --color-primary: #f27405;
       --color-blue: #3483fa;
+      --color-green: #24c257;
       --color-bg: #fff;
       --color-border: #ffe2c2;
       --font: 'Segoe UI', sans-serif;
@@ -75,6 +63,11 @@
     .tab.active[data-tab="yikamaci"] {
       background: var(--color-blue);
       border-bottom-color: var(--color-blue);
+    }
+    .tab.active[data-tab="otopark"] {
+      background: var(--color-green);
+      border-bottom-color: var(--color-green);
+      color: #fff;
     }
     .page {
       flex: 1 1 auto;
@@ -131,6 +124,7 @@
     .place-photo {width: 100%; max-height: 200px; border-radius: 11px; object-fit: cover; margin-bottom: 7px;}
     .modal-main-title {font-size: 1.18em; font-weight:700; color: var(--color-primary); margin-bottom: 6px;}
     .modal-main-title.yikamaci { color: var(--color-blue);}
+    .modal-main-title.otopark { color: var(--color-green);}
     .modal-detail {color:#7b4716;font-size:.98em;margin-bottom:5px;}
     .modal-city {color:#b87904;font-size:.98em;margin-bottom:4px;}
     .modal-actions {margin-top:8px;}
@@ -142,6 +136,7 @@
       text-decoration:none;
     }
     .modal-btn.yikamaci {background: var(--color-blue);}
+    .modal-btn.otopark {background: var(--color-green);}
     .modal-btn:active { opacity: 0.88; }
     .stars {color:#e08e1e;font-size:1.11em;margin-bottom:7px;letter-spacing:.08em;}
     #routeInfoBox {
@@ -176,6 +171,7 @@
       transition: background .18s, box-shadow .18s;
     }
     .route-info-inner.yikamaci {background: var(--color-blue);}
+    .route-info-inner.otopark {background: var(--color-green);}
     .route-dist, .route-dur {
       font-size:1.06em;
       margin-right: 6px;
@@ -200,6 +196,7 @@
       display: flex; align-items: center; gap:4px;
     }
     .route-info-inner.yikamaci .route-center-btn { color: var(--color-blue);}
+    .route-info-inner.otopark .route-center-btn { color: var(--color-green);}
     .route-center-btn:active { background: #ffe2c2;}
     .route-cancel-btn {
       background: #fff;
@@ -217,6 +214,7 @@
       display: flex; align-items: center; gap:5px;
     }
     .route-info-inner.yikamaci .route-cancel-btn { color: var(--color-blue);}
+    .route-info-inner.otopark .route-cancel-btn { color: var(--color-green);}
     .route-cancel-btn:active { background: #ffe2c2;}
     @media (max-width: 700px) {
       .container, #mapWrap { max-width: 100vw; }
@@ -240,6 +238,7 @@
   <div class="tabs" id="tabs">
     <div class="tab active" data-tab="lastikci" onclick="setTab('lastikci')">Lastikçi</div>
     <div class="tab" data-tab="yikamaci" onclick="setTab('yikamaci')">Oto Yıkama</div>
+    <div class="tab" data-tab="otopark" onclick="setTab('otopark')">Otopark</div>
   </div>
   <div class="page active" id="harita">
     <div id="mapWrap">
@@ -252,11 +251,11 @@
 <div id="routeInfoBox"><div class="route-info-inner" id="routeInfoInner"></div></div>
 <script>
 let currentTab = 'lastikci';
-let map, placesLastikci = [], placesYikamaci = [], markers = [], userMarker = null, userPos = null;
+let map, placesLastikci = [], placesYikamaci = [], placesOtopark = [], markers = [], userMarker = null, userPos = null;
 let directionsService, directionsRenderer, activeRouteType = null, activeRouteDest = null, routeInterval = null;
 let modalOpen = false, activeRouteBounds = null;
+let routeStarted = false; // <-- EKLENDİ
 
-// Sekme geçiş fonksiyonu
 function setTab(tab) {
   if(modalOpen) return;
   currentTab = tab;
@@ -266,7 +265,6 @@ function setTab(tab) {
   if (activeRouteType) updateRouteInfoBox();
 }
 
-// Konumla birlikte mekanları ara
 function searchPlaces() {
   if (!map || !userPos) return;
   const placesService = new google.maps.places.PlacesService(map);
@@ -281,13 +279,23 @@ function searchPlaces() {
       placesLastikci = (status === google.maps.places.PlacesServiceStatus.OK) ? results : [];
       renderMarkers();
     });
-  } else {
+  } else if(currentTab==='yikamaci') {
     placesService.nearbySearch({
       location: userPos,
       radius: 30000,
       keyword: "Oto Yıkama"
     }, (results, status) => {
       placesYikamaci = (status === google.maps.places.PlacesServiceStatus.OK) ? results : [];
+      renderMarkers();
+    });
+  } else {
+    // Otopark
+    placesService.nearbySearch({
+      location: userPos,
+      radius: 30000,
+      keyword: "Otopark"
+    }, (results, status) => {
+      placesOtopark = (status === google.maps.places.PlacesServiceStatus.OK) ? results : [];
       renderMarkers();
     });
   }
@@ -323,7 +331,18 @@ function initMap() {
 function renderMarkers() {
   markers.forEach(m => m.setMap(null));
   markers = [];
-  const places = currentTab==='lastikci' ? placesLastikci : placesYikamaci;
+  let places;
+  let color;
+  if(currentTab==='lastikci') {
+    places = placesLastikci;
+    color = "#f27405";
+  } else if(currentTab==='yikamaci') {
+    places = placesYikamaci;
+    color = "#3483fa";
+  } else {
+    places = placesOtopark;
+    color = "#24c257";
+  }
   if(!map) return;
   places.forEach(place => {
     const marker = new google.maps.Marker({
@@ -333,7 +352,7 @@ function renderMarkers() {
       icon: {
         path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
         scale: 6,
-        fillColor: currentTab==='lastikci' ? "#f27405" : "#3483fa",
+        fillColor: color,
         fillOpacity: 1,
         strokeWeight: 1,
         strokeColor: "#fff"
@@ -361,14 +380,14 @@ function showPlaceDetail(placeId, type) {
     let photoUrl = place.photos && place.photos[0] ? place.photos[0].getUrl({maxWidth:410,maxHeight:200}) : '';
     let stars = place.rating ? `<div class="stars">★ ${place.rating.toFixed(1)}</div>` : '';
     let address = place.formatted_address || place.vicinity || '';
-    let phone = place.formatted_phone_number ? `<a href="tel:${place.formatted_phone_number.replace(/\s+/g,'')}" class="modal-btn${type==='yikamaci'?' yikamaci':''}">Ara</a>` : '';
-    let directionsBtn = `<button class="modal-btn${type==='yikamaci'?' yikamaci':''}" style="margin-top:9px;" onclick="calcRoute(${place.geometry.location.lat()},${place.geometry.location.lng()},'${place.name.replace(/'/g,"\\'")}', '${type}')">Rota Oluştur</button>`;
+    let phone = place.formatted_phone_number ? `<a href="tel:${place.formatted_phone_number.replace(/\s+/g,'')}" class="modal-btn${type==='yikamaci'?' yikamaci':''}${type==='otopark'?' otopark':''}">Ara</a>` : '';
+    let directionsBtn = `<button class="modal-btn${type==='yikamaci'?' yikamaci':''}${type==='otopark'?' otopark':''}" style="margin-top:9px;" onclick="calcRoute(${place.geometry.location.lat()},${place.geometry.location.lng()},'${place.name.replace(/'/g,"\\'")}', '${type}')">Rota Oluştur</button>`;
     modalBg.innerHTML = `
       <div class="modal-inner">
         <button class="modal-close" onclick="closeModal()">×</button>
         <div class="modal-content">
           ${photoUrl?`<img src="${photoUrl}" class="place-photo" alt="Görsel">`:""}
-          <div class="modal-main-title${type==='yikamaci'?' yikamaci':''}">${place.name||''}</div>
+          <div class="modal-main-title${type==='yikamaci'?' yikamaci':''}${type==='otopark'?' otopark':''}">${place.name||''}</div>
           ${stars}
           <div class="modal-detail">${address}</div>
           ${place.formatted_phone_number?`<div class="modal-city"><b>Telefon:</b> ${place.formatted_phone_number}</div>`:""}
@@ -386,12 +405,14 @@ window.closeModal = function(){
   setTimeout(()=>{document.getElementById('modalBg').innerHTML='';modalOpen=false;}, 280);
 }
 
+// --- ENTEGRE ROTAYI GOOGLE HARİTA GİBİ YAKLAŞTIRMA ---
 window.calcRoute = function(destLat, destLng, destName, type){
   if(!userPos){ alert('Konum alınamadı.'); return; }
   activeRouteType = type;
   activeRouteDest = {lat: destLat, lng: destLng};
-  const polyColor = type==='yikamaci' ? "#3483fa" : "#f27405";
+  const polyColor = type==='yikamaci' ? "#3483fa" : (type==='otopark' ? "#24c257" : "#f27405");
   directionsRenderer.setOptions({polylineOptions:{strokeColor:polyColor,strokeWeight:5}});
+  routeStarted = false; // Sadece yeni rota başlarken sıfırla
   updateRouteLive();
   if(routeInterval) clearInterval(routeInterval);
   routeInterval = setInterval(updateRouteLive, 3000);
@@ -410,11 +431,22 @@ function updateRouteLive(){
       directionsRenderer.setDirections(result);
       const leg = result.routes[0].legs[0];
       activeRouteBounds = result.routes[0].bounds;
+
+      // --- SADECE İLK ROTA BAŞLADIĞINDA YAKINLAŞTIR ---
+      if (!routeStarted) {
+        map.fitBounds(activeRouteBounds);
+        const distanceMeters = leg.distance.value;
+        if (distanceMeters < 2500) map.setZoom(16);
+        else if (distanceMeters < 7000) map.setZoom(15);
+        else if (distanceMeters < 15000) map.setZoom(14);
+        routeStarted = true;
+      }
       showRouteInfoBox(leg.distance.text, leg.duration.text, activeRouteType);
     }
   });
 }
 
+// --- ROTA ORTALA: TEKRAR FIT/ZOOM, YÖNE GÖRE (isteğe bağlı) ---
 window.centerRoute = function(){
   if(map && activeRouteBounds){
     map.fitBounds(activeRouteBounds);
@@ -424,7 +456,7 @@ window.centerRoute = function(){
 function showRouteInfoBox(distance, duration, type){
   const routeBox = document.getElementById('routeInfoBox');
   const routeInner = document.getElementById('routeInfoInner');
-  routeInner.className = "route-info-inner"+(type==='yikamaci'?' yikamaci':'');
+  routeInner.className = "route-info-inner"+(type==='yikamaci'?' yikamaci':'')+(type==='otopark'?' otopark':'');
   routeInner.innerHTML = `
     <span class="route-dist">
       <svg width="17" height="17" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M6.5 7a5.5 5.5 0 1 1 11 0c0 4.26-4.49 9.45-5.02 10.06a.75.75 0 0 1-1.14 0C10.99 16.45 6.5 11.26 6.5 7zm5.5-4a7.5 7.5 0 0 0-7.5 7.5c0 5.41 6.38 12.35 6.65 12.63a2.25 2.25 0 0 0 3.2 0c.27-.28 6.65-7.22 6.65-12.63A7.5 7.5 0 0 0 12 3z"/></svg>
@@ -451,6 +483,7 @@ window.cancelRoute = function(){
   activeRouteType = null; activeRouteDest = null;
   if(routeInterval) clearInterval(routeInterval);
   routeInterval = null;
+  routeStarted = false;
 };
 
 setInterval(()=>{
@@ -466,10 +499,11 @@ setInterval(()=>{
       }
     });
   }
-}, 3000);
+}, 7000);
 
 window.initMap = initMap;
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB-MpFcUMdFif1OPAGWcBhmWjWDPaM7Qz0&libraries=places&callback=initMap" async defer></script>
+<!-- DİKKAT: geometry kütüphanesi eklendi -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB-MpFcUMdFif1OPAGWcBhmWjWDPaM7Qz0&libraries=places,geometry&callback=initMap" async defer></script>
 </body>
 </html>

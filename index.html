@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Viteska – Lastikçi & Oto Yıkamacı Harita</title>
+  <style>
+    :root {
+      --color-primary: #f27405;
+      --color-blue: #3483fa;
+      --color-bg: #fff;
+      --color-border: #ffe2c2;
+      --font: 'Segoe UI', sans-serif;
+    }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: var(--font);
+      background: var(--color-bg);
+      width: 100vw; height: 100vh;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    .container {
+      max-width: 1000px;
+      width: 100vw;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .tabs {
+      display: flex;
+      width: 100%;
+      background: #fff;
+      border-bottom: 2px solid var(--color-border);
+      z-index: 20;
+      position: relative;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 15px 0 15px;
+      font-size: 1.09rem;
+      font-weight: 600;
+      color: var(--color-primary);
+      background: #fff;
+      border-bottom: 3px solid var(--color-border);
+      cursor: pointer;
+      user-select: none;
+      min-width: 1px;
+      white-space: nowrap;
+      transition: background .17s;
+    }
+    .tab.active {
+      color: #fff;
+      border-bottom-color: var(--color-primary);
+    }
+    .tab.active[data-tab="lastikci"] {
+      background: var(--color-primary);
+      border-bottom-color: var(--color-primary);
+    }
+    .tab.active[data-tab="yikamaci"] {
+      background: var(--color-blue);
+      border-bottom-color: var(--color-blue);
+    }
+    .page {
+      flex: 1 1 auto;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+      background: var(--color-bg);
+      display: block;
+    }
+    #mapWrap {
+      width: 100%;
+      height: calc(100vh - 51px);
+      position: relative;
+      max-width: 100vw;
+      margin: 0 auto;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    #mapLoading {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      background: #fff3eb; color: #c86e01; font-weight: 600; font-size: 1.13em;
+      padding: 22px 28px; border-radius: 14px; z-index: 222; box-shadow: 0 3px 22px #ffc98a38;
+    }
+    .modal-bg {
+      display: none;
+      position:fixed; left:0;top:0;width:100vw;height:100vh;z-index:9999;
+      background: rgba(41,18,0,0.23);
+      align-items: center; justify-content: center;
+      transition: opacity .18s;
+    }
+    .modal-bg.active { display:flex; }
+    .modal-inner {
+      background: #fff7ee;
+      border-radius: 13px;
+      padding: 17px 14px 13px 17px;
+      min-width: 310px;
+      max-width: 95vw;
+      box-shadow: 0 7px 36px #d2630040;
+      position: relative;
+      animation: pop .16s;
+      margin: 20px;
+    }
+    @keyframes pop {0%{transform:scale(.92);} 100%{transform:scale(1);}}
+    .modal-close {
+      position:absolute; right:12px; top:9px; background:none; border:none; font-size:2.0em; color:#e07000; cursor:pointer; z-index:9;
+      line-height:1; font-weight:700;
+    }
+    .place-photo {width: 100%; max-height: 200px; border-radius: 11px; object-fit: cover; margin-bottom: 7px;}
+    .modal-main-title {font-size: 1.18em; font-weight:700; color: var(--color-primary); margin-bottom: 6px;}
+    .modal-main-title.yikamaci { color: var(--color-blue);}
+    .modal-detail {color:#7b4716;font-size:.98em;margin-bottom:5px;}
+    .modal-city {color:#b87904;font-size:.98em;margin-bottom:4px;}
+    .modal-actions {margin-top:8px;}
+    .modal-btn {
+      background: var(--color-primary); color:#fff; border:none;
+      padding: 8px 18px; border-radius: 9px; font-weight:600; font-size:1.07em;
+      margin-right:8px; margin-top:6px; cursor:pointer; box-shadow:none; outline:none;
+      display: inline-block;
+      text-decoration:none;
+    }
+    .modal-btn.yikamaci {background: var(--color-blue);}
+    .modal-btn:active { opacity: 0.88; }
+    .stars {color:#e08e1e;font-size:1.11em;margin-bottom:7px;letter-spacing:.08em;}
+    #routeInfoBox {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 100vw;
+      max-width: 100vw;
+      margin: 0 auto;
+      z-index: 10001;
+      display: none;
+      pointer-events: none;
+    }
+    .route-info-inner {
+      background: var(--color-primary);
+      color: #fff;
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -5px 22px #ffc98a70;
+      font-weight: 600;
+      font-size: 1.13em;
+      padding: 13px 11px 15px 18px;
+      text-align: center;
+      margin: 0 auto;
+      max-width: 650px;
+      width: 100vw;
+      min-width: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      pointer-events: auto;
+      transition: background .18s, box-shadow .18s;
+    }
+    .route-info-inner.yikamaci {background: var(--color-blue);}
+    .route-dist, .route-dur {
+      font-size:1.06em;
+      margin-right: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 500;
+    }
+    .route-center-btn {
+      background: #fff;
+      color: var(--color-primary);
+      border: none;
+      border-radius: 9px;
+      font-weight: 700;
+      font-size: .98em;
+      margin-left: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+      outline: none;
+      box-shadow: none;
+      transition: background .16s;
+      display: flex; align-items: center; gap:4px;
+    }
+    .route-info-inner.yikamaci .route-center-btn { color: var(--color-blue);}
+    .route-center-btn:active { background: #ffe2c2;}
+    .route-cancel-btn {
+      background: #fff;
+      color: var(--color-primary);
+      border: none;
+      border-radius: 9px;
+      font-weight: 700;
+      font-size: .98em;
+      margin-left: 9px;
+      padding: 8px 16px;
+      cursor: pointer;
+      outline: none;
+      box-shadow: none;
+      transition: background .16s;
+      display: flex; align-items: center; gap:5px;
+    }
+    .route-info-inner.yikamaci .route-cancel-btn { color: var(--color-blue);}
+    .route-cancel-btn:active { background: #ffe2c2;}
+    @media (max-width: 700px) {
+      .container, #mapWrap { max-width: 100vw; }
+      .route-info-inner {
+        max-width: 100vw;
+        padding: 11px 4px 13px 7px;
+        font-size: 1.01em;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 9px;
+      }
+      #routeInfoBox {max-width: 100vw;}
+    }
+    @media (max-width: 1200px) {
+      .container {max-width: 100vw;}
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="lastikci" onclick="setTab('lastikci')">Lastikçi</div>
+    <div class="tab" data-tab="yikamaci" onclick="setTab('yikamaci')">Oto Yıkama</div>
+  </div>
+  <div class="page active" id="harita">
+    <div id="mapWrap">
+      <div id="map"></div>
+      <div id="mapLoading" class="loading" style="display:none;">Harita yükleniyor...</div>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="modalBg"></div>
+<div id="routeInfoBox"><div class="route-info-inner" id="routeInfoInner"></div></div>
+<script>
+let currentTab = 'lastikci';
+let map, placesLastikci = [], placesYikamaci = [], markers = [], userMarker = null, userPos = null;
+let directionsService, directionsRenderer, activeRouteType = null, activeRouteDest = null, routeInterval = null;
+let modalOpen = false, activeRouteBounds = null;
+
+// Sekme geçiş fonksiyonu
+function setTab(tab) {
+  if(modalOpen) return;
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+  searchPlaces();
+  if (activeRouteType) updateRouteInfoBox();
+}
+
+// Konumla birlikte mekanları ara
+function searchPlaces() {
+  if (!map || !userPos) return;
+  const placesService = new google.maps.places.PlacesService(map);
+  markers.forEach(m => m.setMap(null));
+  markers = [];
+  if(currentTab==='lastikci'){
+    placesService.nearbySearch({
+      location: userPos,
+      radius: 30000,
+      keyword: "Lastikçi"
+    }, (results, status) => {
+      placesLastikci = (status === google.maps.places.PlacesServiceStatus.OK) ? results : [];
+      renderMarkers();
+    });
+  } else {
+    placesService.nearbySearch({
+      location: userPos,
+      radius: 30000,
+      keyword: "Oto Yıkama"
+    }, (results, status) => {
+      placesYikamaci = (status === google.maps.places.PlacesServiceStatus.OK) ? results : [];
+      renderMarkers();
+    });
+  }
+}
+
+function initMap() {
+  document.getElementById('mapLoading').style.display = '';
+  navigator.geolocation.getCurrentPosition(pos => {
+    userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    map = new google.maps.Map(document.getElementById('map'), {
+      center: userPos, zoom: 13, mapTypeControl: false, streetViewControl: false, fullscreenControl: false
+    });
+    userMarker = new google.maps.Marker({
+      map,
+      position: userPos,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: "#18b501", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2 },
+      title: "Konumunuz"
+    });
+    directionsService = new google.maps.DirectionsService();
+    directionsRenderer = new google.maps.DirectionsRenderer({
+      suppressMarkers: true,
+      polylineOptions: { strokeColor: "#f27405", strokeWeight: 5 }
+    });
+    directionsRenderer.setMap(map);
+    searchPlaces();
+    document.getElementById('mapLoading').style.display = 'none';
+  }, ()=>{
+    alert('Konum alınamadı. Lütfen konum izni verin.');
+    document.getElementById('mapLoading').style.display = 'none';
+  });
+}
+
+function renderMarkers() {
+  markers.forEach(m => m.setMap(null));
+  markers = [];
+  const places = currentTab==='lastikci' ? placesLastikci : placesYikamaci;
+  if(!map) return;
+  places.forEach(place => {
+    const marker = new google.maps.Marker({
+      map,
+      position: place.geometry.location,
+      title: place.name,
+      icon: {
+        path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+        scale: 6,
+        fillColor: currentTab==='lastikci' ? "#f27405" : "#3483fa",
+        fillOpacity: 1,
+        strokeWeight: 1,
+        strokeColor: "#fff"
+      }
+    });
+    marker.addListener('click', ()=>showPlaceDetail(place.place_id, currentTab));
+    markers.push(marker);
+  });
+}
+
+function showPlaceDetail(placeId, type) {
+  const modalBg = document.getElementById('modalBg');
+  modalOpen = true;
+  modalBg.innerHTML = `<div class="modal-inner"><div style="padding:29px 0; text-align:center;">Yükleniyor...</div></div>`;
+  modalBg.classList.add('active');
+  const placesService = new google.maps.places.PlacesService(map);
+  placesService.getDetails({
+    placeId,
+    fields: [
+      'name','rating','photos','formatted_address','vicinity','formatted_phone_number',
+      'website','opening_hours','geometry','types'
+    ]
+  }, (place, status)=>{
+    if(status !== google.maps.places.PlacesServiceStatus.OK) return;
+    let photoUrl = place.photos && place.photos[0] ? place.photos[0].getUrl({maxWidth:410,maxHeight:200}) : '';
+    let stars = place.rating ? `<div class="stars">★ ${place.rating.toFixed(1)}</div>` : '';
+    let address = place.formatted_address || place.vicinity || '';
+    let phone = place.formatted_phone_number ? `<a href="tel:${place.formatted_phone_number.replace(/\s+/g,'')}" class="modal-btn${type==='yikamaci'?' yikamaci':''}">Ara</a>` : '';
+    let directionsBtn = `<button class="modal-btn${type==='yikamaci'?' yikamaci':''}" style="margin-top:9px;" onclick="calcRoute(${place.geometry.location.lat()},${place.geometry.location.lng()},'${place.name.replace(/'/g,"\\'")}', '${type}')">Rota Oluştur</button>`;
+    modalBg.innerHTML = `
+      <div class="modal-inner">
+        <button class="modal-close" onclick="closeModal()">×</button>
+        <div class="modal-content">
+          ${photoUrl?`<img src="${photoUrl}" class="place-photo" alt="Görsel">`:""}
+          <div class="modal-main-title${type==='yikamaci'?' yikamaci':''}">${place.name||''}</div>
+          ${stars}
+          <div class="modal-detail">${address}</div>
+          ${place.formatted_phone_number?`<div class="modal-city"><b>Telefon:</b> ${place.formatted_phone_number}</div>`:""}
+          <div class="modal-actions">
+            ${directionsBtn}
+            ${phone}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+}
+window.closeModal = function(){
+  document.getElementById('modalBg').classList.remove('active');
+  setTimeout(()=>{document.getElementById('modalBg').innerHTML='';modalOpen=false;}, 280);
+}
+
+window.calcRoute = function(destLat, destLng, destName, type){
+  if(!userPos){ alert('Konum alınamadı.'); return; }
+  activeRouteType = type;
+  activeRouteDest = {lat: destLat, lng: destLng};
+  const polyColor = type==='yikamaci' ? "#3483fa" : "#f27405";
+  directionsRenderer.setOptions({polylineOptions:{strokeColor:polyColor,strokeWeight:5}});
+  updateRouteLive();
+  if(routeInterval) clearInterval(routeInterval);
+  routeInterval = setInterval(updateRouteLive, 3000);
+  closeModal();
+};
+
+function updateRouteLive(){
+  if(!userPos || !activeRouteDest) return;
+  const req = {
+    origin: userPos,
+    destination: activeRouteDest,
+    travelMode: google.maps.TravelMode.DRIVING
+  };
+  directionsService.route(req, (result, status)=>{
+    if(status === google.maps.DirectionsStatus.OK){
+      directionsRenderer.setDirections(result);
+      const leg = result.routes[0].legs[0];
+      activeRouteBounds = result.routes[0].bounds;
+      showRouteInfoBox(leg.distance.text, leg.duration.text, activeRouteType);
+    }
+  });
+}
+
+window.centerRoute = function(){
+  if(map && activeRouteBounds){
+    map.fitBounds(activeRouteBounds);
+  }
+}
+
+function showRouteInfoBox(distance, duration, type){
+  const routeBox = document.getElementById('routeInfoBox');
+  const routeInner = document.getElementById('routeInfoInner');
+  routeInner.className = "route-info-inner"+(type==='yikamaci'?' yikamaci':'');
+  routeInner.innerHTML = `
+    <span class="route-dist">
+      <svg width="17" height="17" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M6.5 7a5.5 5.5 0 1 1 11 0c0 4.26-4.49 9.45-5.02 10.06a.75.75 0 0 1-1.14 0C10.99 16.45 6.5 11.26 6.5 7zm5.5-4a7.5 7.5 0 0 0-7.5 7.5c0 5.41 6.38 12.35 6.65 12.63a2.25 2.25 0 0 0 3.2 0c.27-.28 6.65-7.22 6.65-12.63A7.5 7.5 0 0 0 12 3z"/></svg>
+      <b>Mesafe:</b> ${distance}
+    </span>
+    <span class="route-dur">
+      <svg width="17" height="17" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3.25A8.75 8.75 0 1 0 20.75 12 8.76 8.76 0 0 0 12 3.25zm0 16A7.25 7.25 0 1 1 19.25 12 7.26 7.26 0 0 1 12 19.25z"/><path fill="currentColor" d="M12 7.75a.75.75 0 0 1 .75.75v2.94l2.23 1.29a.75.75 0 0 1-.76 1.3l-2.43-1.41a.75.75 0 0 1-.39-.65V8.5A.75.75 0 0 1 12 7.75z"/></svg>
+      <b>Süre:</b> ${duration}
+    </span>
+    <button class="route-center-btn" onclick="centerRoute()">
+      <svg width="17" height="17" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M12 6a1 1 0 0 1 1 1v3.586l2.293 2.293a1 1 0 1 1-1.415 1.415l-2.586-2.586A1 1 0 0 1 11 10V7a1 1 0 0 1 1-1zm0-4a10 10 0 1 1-7.07 2.93A10 10 0 0 1 12 2zm0 2A8 8 0 1 0 20 12a8 8 0 0 0-8-8z"/></svg>
+      Rota Ortala
+    </button>
+    <button class="route-cancel-btn" onclick="cancelRoute()">
+      <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path fill="currentColor" d="M17.71 6.29a1 1 0 0 1 0 1.42L13.42 12l4.29 4.29a1 1 0 0 1-1.42 1.42L12 13.42l-4.29 4.29a1 1 0 0 1-1.42-1.42L10.58 12 6.29 7.71a1 1 0 1 1 1.42-1.42L12 10.58l4.29-4.29a1 1 0 0 1 1.42 0z"/></svg>
+      Rota İptal
+    </button>
+  `;
+  routeBox.style.display = "block";
+}
+window.cancelRoute = function(){
+  directionsRenderer.set('directions', null);
+  document.getElementById('routeInfoBox').style.display = "none";
+  activeRouteType = null; activeRouteDest = null;
+  if(routeInterval) clearInterval(routeInterval);
+  routeInterval = null;
+};
+
+setInterval(()=>{
+  if (navigator.geolocation && activeRouteType) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const newUserPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      userPos = newUserPos;
+      if(userMarker) userMarker.setPosition(newUserPos);
+      if(activeRouteType && directionsRenderer && directionsRenderer.getDirections()){
+        const dir = directionsRenderer.getDirections();
+        const dest = dir.routes[0].legs[0].end_location;
+        window.calcRoute(dest.lat(), dest.lng(), '', activeRouteType);
+      }
+    });
+  }
+}, 3000);
+
+window.initMap = initMap;
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB-MpFcUMdFif1OPAGWcBhmWjWDPaM7Qz0&libraries=places&callback=initMap" async defer></script>
+</body>
+</html>
